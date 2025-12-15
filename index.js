@@ -27,12 +27,18 @@ const DBNAME = process.env.DBNAME;
 const collection = process.env.COLLECTION;
 const client = new MongoClient(MONGO_URI);
 const db = client.db(DBNAME);
-
+const USERS_COLLECTION = process.env.USERS_COLLECTION ?? "users";
 
 // Helper: save user
-function saveUserToDb(email, hashedPw) {
-    fakeUsersDb[email] = hashedPw;
-    console.log("DB state:", fakeUsersDb); // debugging
+async function saveUserToDb(email, hashedPw) {
+  const doc = {
+    email: email.toLowerCase().trim(),
+    hashedPassword: hashedPw,
+    createdAt: new Date(),
+  };
+
+  const result = await db.collection(USERS_COLLECTION).insertOne(doc);
+  return { _id: result.insertedId, email: doc.email };
 }
 // Helper: get user
 function getUserByEmail(email) {
@@ -50,10 +56,10 @@ app.post("/signup", async (req, res) => {
             return res.status(400).json({ detail: "email and password are required" });
         }
         // Check if user exists
-        if (fakeUsersDb[email]) {
-            console.log(`User ${email} already exists`);
-            return res.status(400).json({ detail: "User already exists" });
-        }
+        //if (fakeUsersDb[email]) {
+            //console.log(`User ${email} already exists`);
+          //  return res.status(400).json({ detail: "User already exists" });
+        //}
         console.log("New user:", email, password); // debugging (don't do this in prod)
         // Hash password with bcrypt
         const hashedPw = await bcrypt.hash(password, 10); // 10 = salt rounds
