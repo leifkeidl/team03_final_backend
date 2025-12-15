@@ -25,9 +25,12 @@ const HOST = process.env.HOST ?? "0.0.0.0";
 const MONGO_URI = process.env.MONGO_URI;
 const DBNAME = process.env.DBNAME;
 const collection = process.env.COLLECTION;
+const collection_restaurants = "restaurants";
 const client = new MongoClient(MONGO_URI);
 const db = client.db(DBNAME);
 const USERS_COLLECTION = process.env.USERS_COLLECTION ?? "users";
+
+await client.connect();
 
 // Helper: save user
 async function saveUserToDb(email, hashedPw) {
@@ -41,10 +44,18 @@ async function saveUserToDb(email, hashedPw) {
   return { _id: result.insertedId, email: doc.email };
 }
 // Helper: get user
-function getUserByEmail(email) {
-    const hashedPw = fakeUsersDb[email];
-    if (!hashedPw) return null;
-    return { email, hashedPassword: hashedPw };
+
+async function getUserByEmail(email) {
+  const user = await db
+    .collection(USERS_COLLECTION)
+    .findOne({ email: email.toLowerCase().trim() });
+
+  if (!user) return null;
+
+  return {
+    email: user.email,
+    hashedPassword: user.hashedPassword,
+  };
 }
 
 
@@ -79,7 +90,7 @@ app.post("/login", async (req, res) => {
         if (!email || !password) {
             return res.status(400).json({ detail: "email and password are required" });
         }
-        const dbUser = getUserByEmail(email);
+        const dbUser = await getUserByEmail(email);
         if (!dbUser) {
             return res.status(401).json({ detail: "Invalid credentials-User" });
         }
@@ -94,7 +105,7 @@ app.post("/login", async (req, res) => {
             { expiresIn: `${ACCESS_TOKEN_EXPIRE_MINUTES}m` } // e.g. "30m"
         );
         console.log("Token:", token);
-        console.log("DB:", fakeUsersDb);
+        console.log("DB:", db);
         return res.json({ token }); // shape { "token": "<JWT>" }
     } catch (err) {
         console.error("Error in /login:", err);
@@ -161,6 +172,26 @@ app.get("/dishes", async (req, res) => {
     const query = {};
     const results = await db
         .collection(collection)
+        .find(query)
+        .limit(100)
+        .toArray();
+    console.log(results);
+
+    res.status(200);
+    // res.send(results);
+    res.json(results);
+
+
+});
+
+app.get("/restaurants", async (req, res) => {
+
+    await client.connect();
+    console.log("Node connected successfully to GET MongoDB");
+
+    const query = {};
+    const results = await db
+        .collection(collection_restaurants)
         .find(query)
         .limit(100)
         .toArray();
