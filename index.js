@@ -203,3 +203,35 @@ app.get("/restaurants", async (req, res) => {
 
 
 });
+
+app.get("/stars/:restaurant_name", async (req, res) => {
+  try {
+    const { restaurant_name } = req.params;
+
+    const result = await db.collection("reviews").aggregate([
+      { $match: { restaurantName: restaurant_name } },
+      {
+        $group: {
+          _id: "$restaurantName",
+          avgRating: { $avg: "$rating" },
+          reviewCount: { $sum: 1 }
+        }
+      }
+    ]).toArray();
+
+    if (result.length === 0) {
+      return res.json({ avgRating: null, reviewCount: 0 });
+    }
+
+    res.json({
+      restaurant: restaurant_name,
+      avgRating: Number(result[0].avgRating.toFixed(2)),
+      reviewCount: result[0].reviewCount
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to calculate stars" });
+  }
+});
+
+
