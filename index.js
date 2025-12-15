@@ -1,13 +1,13 @@
 // COPY PASTED FROM ACTIVITY 21
 // NEEDS CHANGES
 
-
+import { MongoClient } from "mongodb";
 import express from "express";
 import cors from "cors";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
 const app = express();
-const PORT = 8081;
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -16,9 +16,19 @@ app.use(express.json());
 const SECRET_KEY = "URMOM_URDAD_URDOG"; // use env var in real apps
 const ACCESS_TOKEN_EXPIRE_MINUTES = 30; // set 1 for demos if you want
 
-// ======== SIMPLE USER "DB" (in-memory for demo) ========
-// key: email, value: hashed password
-const fakeUsersDb = {};
+// MongoDB
+// Server configuration
+dotenv.config();
+const PORT = process.env.PORT ?? 8081;
+const HOST = process.env.HOST ?? "0.0.0.0";
+// MongoDB configuration
+const MONGO_URI = process.env.MONGO_URI;
+const DBNAME = process.env.DBNAME;
+const collection = process.env.COLLECTION;
+const client = new MongoClient(MONGO_URI);
+const db = client.db(DBNAME);
+
+
 // Helper: save user
 function saveUserToDb(email, hashedPw) {
     fakeUsersDb[email] = hashedPw;
@@ -134,4 +144,25 @@ app.get("/hello", (req, res) => {
 // ======== START SERVER ========
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+});
+
+// test
+app.get("/dishes", async (req, res) => {
+
+    await client.connect();
+    console.log("Node connected successfully to GET MongoDB");
+
+    const query = {};
+    const results = await db
+        .collection(collection)
+        .find(query)
+        .limit(100)
+        .toArray();
+    console.log(results);
+
+    res.status(200);
+    // res.send(results);
+    res.json(results);
+
+
 });
